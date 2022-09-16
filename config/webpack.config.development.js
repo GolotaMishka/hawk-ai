@@ -1,25 +1,29 @@
-const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const Dotenv = require('dotenv-webpack');
+const path = require("path");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
+const Dotenv = require("dotenv-webpack");
 
-const paths = require('./paths');
+const paths = require("./paths");
 
 module.exports = {
-  mode: 'development',
-  devtool: 'source-map',
-  entry: ['react-hot-loader/patch', paths.entryPoint],
+  mode: "development",
+  devtool: "source-map",
+  entry: ["react-hot-loader/patch", paths.entryPoint],
   output: {
-    path: paths.outputPath,
-    publicPath: '/',
-    filename: path.join('js', '[name].js'),
+    path: path.resolve(paths.outputPath),
+    publicPath: "/",
+    filename: path.join("js", "[name].[chunkhash].js"),
   },
   resolve: {
-    extensions: ['.js', '.jsx', 'ts', '.jsx'],
-    modules: ['node_modules', paths.nodeModules, paths.src],
+    extensions: [".js", ".jsx", "ts", ".jsx"],
+    modules: ["node_modules", paths.nodeModules, paths.src],
     alias: {
-      'react-dom': '@hot-loader/react-dom',
+      "react-dom": "@hot-loader/react-dom",
       static: paths.publicFiles,
       public: paths.publicFiles,
+    },
+    fallback: {
+      fs: false,
     },
   },
   module: {
@@ -27,43 +31,43 @@ module.exports = {
       {
         test: /\.js(x?)$/,
         exclude: /node_modules/,
-        use: 'babel-loader',
+        use: "babel-loader",
       },
       {
         test: /\.svg$/,
         exclude: [paths.publicFiles],
-        loader: 'svg-sprite-loader',
+        loader: "svg-sprite-loader",
       },
       {
         test: /\.(png|svg|jpg|jpeg|webp|gif)$/i,
         include: [paths.publicFiles],
-        type: 'asset/resource',
+        type: "asset/resource",
       },
       {
         test: /\.(woff|woff2|eot|ttf|otf)$/i,
         include: [paths.publicFiles],
-        type: 'asset/resource',
+        type: "asset/resource",
       },
 
       {
         test: /\.css$/,
-        use: ['style-loader', 'css-loader'],
+        use: ["style-loader", "css-loader"],
       },
       {
         test: /\.scss$/,
         use: [
-          'style-loader',
+          "style-loader",
           {
-            loader: 'css-loader',
+            loader: "css-loader",
             options: {
               modules: {
-                mode: 'local',
-                localIdentName: '[local]-[hash:base64:5]',
+                mode: "local",
+                localIdentName: "[local]-[hash:base64:5]",
               },
             },
           },
           {
-            loader: 'sass-loader',
+            loader: "sass-loader",
           },
         ],
       },
@@ -71,7 +75,15 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.join(paths.publicFiles, 'index.html'),
+      template: path.join(paths.publicFiles, "index.html"),
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: path.resolve(paths.publicFiles, "models", "**"),
+          to: path.resolve(paths.outputPath),
+        },
+      ],
     }),
     new Dotenv({
       path: paths.envPath,
@@ -81,6 +93,6 @@ module.exports = {
     historyApiFallback: true,
     hot: true,
     port: process.env.PORT || 3000,
-    host: '0.0.0.0',
+    host: "0.0.0.0",
   },
 };

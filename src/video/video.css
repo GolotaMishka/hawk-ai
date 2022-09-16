@@ -1,0 +1,18 @@
+video{
+   border-radius: 10px;
+}
+
+.button {
+    cursor: pointer;
+    background-color: #1b88ca;
+    color: white;
+    padding: 15px;
+    font-size: 25px;
+    border: none;
+    border-radius: 10px;
+}
+
+.button:disabled {
+    pointer-events: none;
+    opacity: 0.4;
+}
