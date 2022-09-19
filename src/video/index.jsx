@@ -110,6 +110,7 @@ const Video = () => {
           ref={videoRef}
           height={videoHeight}
           width={videoWidth}
+          autoPlay
           playsInline
         />
         <canvas ref={canvasRef} style={{ position: "absolute" }} />
