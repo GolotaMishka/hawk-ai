@@ -106,7 +106,12 @@ const Video = () => {
           padding: "10px",
         }}
       >
-        <video ref={videoRef} height={videoHeight} width={videoWidth} />
+        <video
+          ref={videoRef}
+          height={videoHeight}
+          width={videoWidth}
+          playsInline
+        />
         <canvas ref={canvasRef} style={{ position: "absolute" }} />
       </div>
       {scoreMeta && (
