@@ -5,6 +5,7 @@ import "./video.css";
 const Video = () => {
   const [areModelsLoaded, setModelsLoaded] = useState(false);
   const [isVideoCaptured, setVideoCaptured] = useState(false);
+  const [scoreMeta, setScoreMeta] = useState(null);
 
   const videoRef = useRef();
   const videoHeight = 480;
@@ -61,7 +62,6 @@ const Video = () => {
           )
           .withFaceLandmarks()
           .withFaceExpressions();
-        console.log(detections);
 
         const resizedDetections = faceapi.resizeResults(
           detections,
@@ -76,24 +76,14 @@ const Video = () => {
         faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
         faceapi.draw.drawFaceExpressions(canvasRef.current, resizedDetections);
 
-        // _______________ DETECTION ___________________
         const video = videoRef.current;
         const detection = await faceapi
           .detectSingleFace(video)
           .withFaceLandmarks();
 
-        // const detection = await faceapi
-        //   .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-        //   .withFaceLandmarks()
-        //   .withFaceDescriptor()
-        //   .withFaceExpressions();
-
-        const landmarks = detection.landmarks;
-
-        // getAngle(landmarks);
-
-        const result = calculateFaceAngle(landmarks);
-        console.log(result);
+        const score = countAttention(detection);
+        const scoreMeta = getScoreMeta(score);
+        setScoreMeta(scoreMeta);
       }
     }, 500);
   };
@@ -119,11 +109,108 @@ const Video = () => {
         <video ref={videoRef} height={videoHeight} width={videoWidth} />
         <canvas ref={canvasRef} style={{ position: "absolute" }} />
       </div>
+      {scoreMeta && (
+        <div className="progress" style={{ backgroundColor: scoreMeta.color }}>
+          <p>{scoreMeta.text}</p>
+        </div>
+      )}
     </div>
   );
 };
 
 export default Video;
+
+function getScoreMeta(score) {
+  if (score === 0) {
+    return {
+      text: "Face is not detected",
+      color: "red",
+    };
+  } else if (score > 0 && score <= 1) {
+    return {
+      text: "Low attention",
+      color: "orange",
+    };
+  } else if (score > 1 && score < 1.6) {
+    return {
+      text: "Normal attention",
+      color: "yellow",
+    };
+  } else {
+    return {
+      text: "Good attention",
+      color: "green",
+    };
+  }
+}
+function countAttention(detection) {
+  if (!detection) {
+    return 0;
+  }
+  const landmarks = detection.landmarks;
+
+  const yaw = getYaw(landmarks);
+  const roll = getRoll(landmarks);
+  return yaw + roll;
+}
+
+function getYaw(landmarks) {
+  const leftEye = Math.max(...landmarks.getLeftEye().map((point) => point._x));
+  const rightEye = Math.min(
+    ...landmarks.getRightEye().map((point) => point._x)
+  );
+  const nose = landmarks
+    .getNose()
+    .reduce((prev, current) => (prev._y > current._y ? prev : current));
+
+  const middleNosePosition = (rightEye + leftEye) / 2;
+
+  const diff = Math.abs(middleNosePosition - nose._x);
+  if (diff < 4) {
+    return 1;
+  } else if (diff >= 4 && diff < 8) {
+    return 0.8;
+  } else if (diff >= 8 && diff < 13) {
+    return 0.6;
+  } else {
+    return 0.3;
+  }
+}
+
+function getRoll(landmarks) {
+  const radians = (a1, a2, b1, b2) => Math.atan2(b2 - a2, b1 - a1);
+  const gradusesPerRadian = 180 / Math.PI;
+
+  if (!landmarks || !landmarks._positions || landmarks._positions.length !== 68)
+    return 0;
+  const positions = landmarks._positions;
+
+  const graduses = Math.abs(
+    radians(
+      positions[36]._x,
+      positions[36]._y,
+      positions[45]._x,
+      positions[45]._y
+    ) * gradusesPerRadian
+  );
+
+  if (graduses < 10) {
+    return 1;
+  } else if (graduses >= 10 && graduses < 20) {
+    return 0.8;
+  } else if (graduses >= 20 && graduses < 30) {
+    return 0.6;
+  } else {
+    return 0.3;
+  }
+}
+
+function getPitch() {
+  // try to do it based on mouth
+  // i would ignore that property because if your head up or down, you face will not be detected
+}
+
+// NOTES
 
 function calculateFaceAngle(mesh) {
   const radians = (a1, a2, b1, b2) => Math.atan2(b2 - a2, b1 - a1);
@@ -134,77 +221,12 @@ function calculateFaceAngle(mesh) {
   if (!mesh || !mesh._positions || mesh._positions.length !== 68) return angle;
   const pt = mesh._positions;
 
-  // roll is face lean left/right
-  // comparing x,y of outside corners of leftEye and rightEye
-  angle.roll =
-    radians(pt[36]._x, pt[36]._y, pt[45]._x, pt[45]._y) * gradusesPerRadian;
-
-  // pitch is face move up/down
-  // comparing size of the box around the face with top and bottom of detected landmarks
-  // silly hack, but this gives us face compression on y-axis
-  // e.g., tilting head up hides the forehead that doesn't have any landmarks so ratio drops
-  // value is normalized to range, but is not in actual radians
-  // angle.pitch = radians(
-  //   pt[30]._x - pt[0]._x,
-  //   pt[27]._y - pt[0]._y,
-  //   pt[16]._x - pt[30]._x,
-  //   pt[27]._y - pt[16]._y
-  // );
-
-  // yaw is face turn left/right
-  // comparing x distance of bottom of nose to left and right edge of face
-  //       and y distance of top    of nose to left and right edge of face
-  // precision is lacking since coordinates are not precise enough
-  // const bottom = pt.reduce(
-  //   (prev, cur) => (prev < cur._y ? prev : cur._y),
-  //   +Infinity
-  // );
-  // const top = pt.reduce(
-  //   (prev, cur) => (prev > cur._y ? prev : cur._y),
-  //   -Infinity
-  // );
-  // angle.yaw = 10 * (mesh._imgDims._height / (top - bottom) / 1.45 - 1);
+  angle.pitch = radians(
+    pt[30]._x - pt[0]._x,
+    pt[27]._y - pt[0]._y,
+    pt[16]._x - pt[30]._x,
+    pt[27]._y - pt[16]._y
+  );
 
   return angle;
-}
-
-// pitch: up-down: looks like it's impossible to define properly it in the 2D
-// yaw: left-right: from -1 to -2
-// roll: diagonal: ok
-
-// _______________________________________
-
-function getAngle(landmarks) {
-  var right_eye = getMeanPosition(landmarks.getRightEye());
-  var left_eye = getMeanPosition(landmarks.getLeftEye());
-  var nose = getMeanPosition(landmarks.getNose());
-  // var mouth = getMeanPosition(landmarks.getMouth());
-  // var jaw = getTop(landmarks.getJawOutline());
-
-  // var rx = (jaw - mouth) / detections["_box"]["_height"];
-  var ry = (left_eye[0] + (right_eye[0] - left_eye[0]) / 2 - nose[0]) / 640;
-
-  var face_val = ry.toFixed(2);
-
-  if (face_val < -0.06) {
-    //user moving in left direction
-    console.log("_____LEFT _______");
-  } else if (face_val >= 0.07) {
-    //user moving in right direction
-    console.log("_____RIGHT _______");
-  } else {
-    //user face in facing front side of webcam
-    console.log("_____FRONT_______");
-  }
-}
-
-function getMeanPosition(l) {
-  return l
-    .map((a) => [a.x, a.y])
-    .reduce((a, b) => [a[0] + b[0], a[1] + b[1]])
-    .map((a) => a / l.length);
-}
-
-function getTop(l) {
-  return l.map((a) => a.y).reduce((a, b) => Math.min(a, b));
 }
