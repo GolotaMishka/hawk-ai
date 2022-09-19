@@ -112,6 +112,8 @@ const Video = () => {
           width={videoWidth}
           autoPlay
           playsInline
+          muted
+          loop
         />
         <canvas ref={canvasRef} style={{ position: "absolute" }} />
       </div>
