@@ -5,6 +5,8 @@ import "./video.css";
 const Video = () => {
   const [areModelsLoaded, setModelsLoaded] = useState(false);
   const [isVideoCaptured, setVideoCaptured] = useState(false);
+  const [isDetectionStarted, setDetectionStarted] = useState(false);
+
   const [scoreMeta, setScoreMeta] = useState(null);
 
   const videoRef = useRef();
@@ -43,6 +45,7 @@ const Video = () => {
   }, []);
 
   const startDetection = () => {
+    setDetectionStarted(true);
     setInterval(async () => {
       if (canvasRef && canvasRef.current) {
         canvasRef.current.innerHTML = faceapi.createCanvasFromMedia(
@@ -93,7 +96,7 @@ const Video = () => {
       <div style={{ textAlign: "center", padding: "10px" }}>
         <button
           className="button"
-          disabled={!areModelsLoaded || !isVideoCaptured}
+          disabled={!areModelsLoaded || !isVideoCaptured || isDetectionStarted}
           onClick={startDetection}
         >
           Start detection
